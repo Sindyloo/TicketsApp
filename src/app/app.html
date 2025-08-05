@@ -1,0 +1,276 @@
+<main class="main">
+  <div class="container-fluid mt-4">
+    <!-- Header con título y botones -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-center align-items-center">
+          <h2 class="mb-4">Gestión de Tickets</h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+      <div class="col-10 offset-1">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light">
+            <h5 class="mb-0">Filtros</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="filtroNroTicket" class="form-label">NRO DE TICKET</label>
+                <input type="text" class="form-control" id="filtroNroTicket" [(ngModel)]="filtros.NRO_DE_TICKET" placeholder="Buscar por número...">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="filtroEstado" class="form-label">ESTADO</label>
+                <select class="form-select" id="filtroEstado" [(ngModel)]="filtros.ESTADO">
+                  <option value="">Todos los estados</option>
+                  @for (estado of estados; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 d-flex justify-content-center">
+                <button type="button" class="btn btn-primary me-2" (click)="buscarTickets()">
+                  <i class="bi bi-search"></i> Buscar
+                </button>
+                <button type="button" class="btn btn-secondary me-2" (click)="limpiarFiltros()">
+                  <i class="bi bi-arrow-clockwise"></i> Limpiar
+                </button>
+                <button type="button" class="btn btn-primary" (click)="abrirModal()">
+                  <i class="bi bi-plus-circle"></i> Nuevo Ticket
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grilla de tickets -->
+    <div class="row">
+      <div class="col-10 offset-1">
+        <div class="card shadow">
+          <div class="card-header bg-light text-dark">
+            <div class="d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Bandeja de Tickets</h5>
+              <span class="badge bg-primary">
+                {{ ticketsFiltrados().length }} de {{ tickets().length }} tickets
+              </span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead class="table-secondary">
+                  <tr>
+                    <th>NRO DE TICKET</th>
+                    <th>TIPO TICKET</th>
+                    <th>CATEGORÍA</th>
+                    <th>SUBCATEGORIA</th>
+                    <th>SOLICITUD</th>
+                    <th>ESTADO</th>
+                    <th>AGENTE ASIGNADO</th>
+                    <th>PRIORIDAD</th>
+                    <th>FECHA CREACION</th>
+                    <th>ACCIONES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (ticket of ticketsFiltrados(); track $index) {
+                    <tr>
+                      <td>{{ ticket.NRO_DE_TICKET }}</td>
+                      <td>{{ ticket.TIPO_TICKET }}</td>
+                      <td>{{ ticket.CATEGORIA }}</td>
+                      <td>{{ ticket.SUBCATEGORIA }}</td>
+                      <td>{{ ticket.SOLICITUD }}</td>
+                      <td>
+                        <span class="badge" [ngClass]="{
+                          'bg-success': ticket.ESTADO === 'Solucionado',
+                          'bg-info': ticket.ESTADO === 'Abierto'
+                        }">{{ ticket.ESTADO }}</span>
+                      </td>
+                      <td>{{ ticket.AGENTE_ASIGNADO }}</td>
+                      <td>
+                        <span class="badge" [ngClass]="{
+                          'bg-success': ticket.PRIORIDAD === 'Baja',
+                          'bg-warning': ticket.PRIORIDAD === 'Media',
+                          'bg-danger': ticket.PRIORIDAD === 'Alta',
+                        }">{{ ticket.PRIORIDAD }}</span>
+                      </td>
+                      <td>{{ ticket.FECHA_CREACION | date:'short' }}</td>
+                      <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="editarTicket(ticket)">
+                          <i class="bi bi-pencil"></i> Editar
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para crear/editar ticket -->
+  <div class="modal fade" id="ticketModal" tabindex="-1" aria-labelledby="ticketModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content position-relative">
+        <!-- Overlay de loading -->
+        <div *ngIf="isLoading()" class="position-absolute w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(255,255,255,0.8); z-index: 1050; top: 0; left: 0;">
+          <div class="text-center">
+            <div class="spinner-border text-primary mb-2" role="status">
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+            <div class="text-muted">Guardando en Google Sheets...</div>
+          </div>
+        </div>
+        <div class="modal-header">
+          <h5 class="modal-title" id="ticketModalLabel">{{ esEdicion ? 'Editar Ticket' : 'Crear Nuevo Ticket' }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Pestañas -->
+          <ul class="nav nav-tabs" id="ticketTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="datos-tab" data-bs-toggle="tab" data-bs-target="#datos" type="button" role="tab" aria-controls="datos" aria-selected="true">
+                Datos del Ticket
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="seguimiento-tab" data-bs-toggle="tab" data-bs-target="#seguimiento" type="button" role="tab" aria-controls="seguimiento" aria-selected="false">
+                Registro de Seguimiento
+              </button>
+            </li>
+          </ul>
+
+          <!-- Contenido de las pestañas -->
+          <div class="tab-content" id="ticketTabsContent">
+            <!-- Pestaña 1: Datos del Ticket -->
+            <div class="tab-pane fade show active" id="datos" role="tabpanel" aria-labelledby="datos-tab">
+              <form>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="nroTicket" class="form-label">NRO DE TICKET</label>
+                    <input type="text" class="form-control" id="nroTicket" [(ngModel)]="ticketData.NRO_DE_TICKET" name="NRO_DE_TICKET" required>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="tipoTicket" class="form-label">TIPO TICKET</label>
+                    <input type="text" class="form-control" id="tipoTicket" [(ngModel)]="ticketData.TIPO_TICKET" name="TIPO_TICKET" required>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="categoria" class="form-label">CATEGORÍA</label>
+                    <input type="text" class="form-control" id="categoria" [(ngModel)]="ticketData.CATEGORIA" name="CATEGORIA" required>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="subcategoria" class="form-label">SUBCATEGORIA</label>
+                    <input type="text" class="form-control" id="subcategoria" [(ngModel)]="ticketData.SUBCATEGORIA" name="SUBCATEGORIA" required>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="solicitud" class="form-label">SOLICITUD</label>
+                  <input type="text" class="form-control" id="solicitud" [(ngModel)]="ticketData.SOLICITUD" name="SOLICITUD" required>
+                </div>
+
+                <div class="mb-3">
+                  <label for="detalleSolicitud" class="form-label">DETALLE SOLICITUD</label>
+                  <textarea class="form-control" id="detalleSolicitud" rows="3" [(ngModel)]="ticketData.DETALLE_SOLICITUD" name="DETALLE_SOLICITUD" required></textarea>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label for="estado" class="form-label">ESTADO</label>
+                    <select class="form-select" id="estado" [(ngModel)]="ticketData.ESTADO" name="ESTADO" required>
+                      <option value="">Seleccionar estado...</option>
+                      @for (estado of estados; track estado) {
+                        <option [value]="estado">{{ estado }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label for="agenteAsignado" class="form-label">AGENTE ASIGNADO</label>
+                    <input type="text" class="form-control" id="agenteAsignado" [(ngModel)]="ticketData.AGENTE_ASIGNADO" name="AGENTE_ASIGNADO" required>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label for="prioridad" class="form-label">PRIORIDAD</label>
+                    <select class="form-select" id="prioridad" [(ngModel)]="ticketData.PRIORIDAD" name="PRIORIDAD" required>
+                      <option value="">Seleccionar prioridad...</option>
+                      @for (prioridad of prioridades; track prioridad) {
+                        <option [value]="prioridad">{{ prioridad }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="fechaCreacion" class="form-label">FECHA CREACION DEL TICKET</label>
+                  <input type="datetime-local" class="form-control" id="fechaCreacion" [(ngModel)]="ticketData.FECHA_CREACION" name="FECHA_CREACION" required>
+                </div>
+              </form>
+            </div>
+
+            <!-- Pestaña 2: Registro de Seguimiento -->
+            <div class="tab-pane fade" id="seguimiento" role="tabpanel" aria-labelledby="seguimiento-tab">
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label for="textoSeguimiento" class="form-label">TEXTO</label>
+                  <textarea class="form-control" id="textoSeguimiento" rows="1" [(ngModel)]="seguimientoData.texto" name="textoSeguimiento" placeholder="Ingrese el texto del seguimiento..."></textarea>
+                </div>
+                <div class="col-md-4">
+                  <label for="fechaSeguimiento" class="form-label">FECHA</label>
+                  <input type="datetime-local" class="form-control" id="fechaSeguimiento" [(ngModel)]="seguimientoData.fecha" name="fechaSeguimiento">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                  <button type="button" class="btn btn-primary w-100" (click)="agregarSeguimiento()">
+                    <i class="bi bi-plus-circle"></i> Agregar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Grilla de seguimiento -->
+              <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                  <thead class="table-secondary">
+                    <tr>
+                      <th>#</th>
+                      <th>TEXTO</th>
+                      <th>FECHA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (seguimiento of seguimientos(); track $index) {
+                      <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ seguimiento.texto }}</td>
+                        <td>{{ seguimiento.fecha | date:'short' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" [disabled]="isLoading()">Cancelar</button>
+          <button type="button" class="btn btn-primary" (click)="guardarTicket()" [disabled]="isLoading()">
+            <span *ngIf="isLoading()" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            {{ esEdicion ? 'Actualizar' : 'Crear' }} Ticket
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+
