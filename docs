@@ -1,0 +1,9 @@
+mkdir docs
+
+# Copiar archivos construidos
+xcopy dist\angular-simple-app\browser\* docs\ /E /I /Y
+
+# Subir docs
+git add docs/
+git commit -m "Agregar build para GitHub Pages"
+git push origin main
